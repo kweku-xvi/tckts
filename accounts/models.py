@@ -28,8 +28,8 @@ class MyUserManager(BaseUserManager):
 
 class User(AbstractUser):
     ROLE = [
-        ('User', 'User'),
-        ('Event Manager', 'Event Manager')
+        ('user', 'User'),
+        ('organizer', 'Organizer')
     ]
 
     id = models.CharField(max_length=8, primary_key=True, unique=True)
