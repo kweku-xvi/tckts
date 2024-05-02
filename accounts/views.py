@@ -1,9 +1,11 @@
 import os, jwt
 from .models import User
-from .serializers import SignUpSerializer, LoginSerializer
+from .permissions import IsVerified
+from .serializers import SignUpSerializer, LoginSerializer, UserInfoSerializer
 from .utils import email_verification, password_reset_mail
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.sites.shortcuts import get_current_site
+from django.db.models import Q
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.encoding import force_bytes
@@ -14,7 +16,21 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
+
 load_dotenv()
+
+
+def get_user(uid:str):
+    try:
+        user = User.objects.get(id=uid)
+    except User.DoesNotExist:
+        return Response(
+            {
+                'success':False,
+                'message':'User does not exist'
+            }, status=status.HTTP_404_NOT_FOUND
+        )
+    return user
 
 
 @api_view(['POST'])
@@ -220,3 +236,143 @@ def password_reset_confirm_view(request):
                     'message':str(e)
                 }, status=status.HTTP_400_BAD_REQUEST
             )
+
+
+@api_view(['GET'])
+@permission_classes([IsVerified])
+def user_info_view(request, uid:str):
+    if request.method == 'GET':
+        current_user = request.user 
+
+        if not current_user.is_staff:
+            return Response (
+                {
+                    'success':False,
+                    'message':'You do not have the permission to perform this action. Only admins can perform this action.'
+                }, status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        user = get_user(uid=uid)
+        serializer = UserInfoSerializer(user)
+
+        return Response(
+            {
+                'success':True,
+                'user':serializer.data
+            }, status=status.HTTP_200_OK
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsVerified])
+def get_all_users_view(request):
+    if request.method == 'GET':
+        current_user = request.user
+
+        if not current_user.is_staff:
+            return Response (
+                {
+                    'success':False,
+                    'message':'You do not have the permission to perform this action. Only admins can perform this action.'
+                }, status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        users = User.objects.all()
+        serializer = UserInfoSerializer(users, many=True)
+
+        return Response(
+            {
+                'success':True,
+                'users':serializer.data
+            }, status=status.HTTP_200_OK
+        )
+        
+
+@api_view(['PUT', 'PATCH'])
+@permission_classes([IsVerified])
+def update_user_view(request, uid:str):
+    if request.method == 'PUT' or request.method == 'PATCH':
+        current_user = request.user
+        user = get_user(uid=uid)
+
+        if current_user != user and not current_user.is_staff:
+            return Response(
+                {
+                    'success':False,
+                    'message':'You can not perform this action'
+                }, status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        serializer = UserInfoSerializer(user, data=request.data, partial=True)
+
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+
+            return Response(
+                {
+                    'success':True,
+                    'message':'User update successful',
+                    'user':serializer.data
+                }, status=status.HTTP_200_OK
+            )
+        return Response(
+            {
+                'success':False,
+                'message':serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+@api_view(['DELETE'])
+@permission_classes([IsVerified])
+def delete_user_view(request, uid:str):
+    if request.method == 'DELETE':
+        current_user = request.user
+        user = get_user(uid=uid)
+
+        if not current_user.is_staff:
+            return Response (
+                {
+                    'success':False,
+                    'message':'You can not perform this action'
+                }, status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        user.delete()
+
+        return Response(
+            {
+                'success':True,
+                'message':'User deleted successfully'
+            }, status=status.HTTP_204_NO_CONTENT
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsVerified])
+def search_user_view(request):
+    if request.method == 'GET':
+        username = request.query_params.get('username')
+
+        if not username:
+            return Response(
+                {
+                    'success':False,
+                    'message':'Username is required'
+                }, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        users = User.objects.filter(
+            Q(username__icontains=username)
+        )
+
+        serializer = UserInfoSerializer(users, many=True)
+
+        return Response(
+            {
+                'success':True,
+                'message':'Below are you search results',
+                'users':serializer.data
+            }, status=status.HTTP_200_OK
+        )
+        
