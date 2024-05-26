@@ -35,7 +35,7 @@ def buy_tickets(request, ticket_type_id:str):
 
 
 @api_view(['POST'])
-def payment_webhook(request):
+def payment_webhook(request): # ERROR
     if request.method == 'POST':
         payload = json.loads(request.body)
 
