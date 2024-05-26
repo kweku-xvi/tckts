@@ -3,7 +3,7 @@ from django.contrib import admin
 
 
 class TicketTypeAdmin(admin.ModelAdmin):
-    list_display = ('ticket_type_id', 'name', 'event')
+    list_display = ('ticket_type_id', 'name', 'event', 'price')
 
 
 admin.site.register(TicketType, TicketTypeAdmin)
