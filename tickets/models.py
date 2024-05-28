@@ -1,7 +1,7 @@
 import uuid
 from accounts.models import User
 from django.db import models
-from payments.utils import generate_payment_id
+from payments.utils import generate_id
 from programs.models import Event
 
 
@@ -44,7 +44,7 @@ class TicketPurchase(models.Model):
     
     def save(self, *args, **kwargs):
         if not self.purchase_id:
-            self.purchase_id = generate_payment_id(10)
+            self.purchase_id = generate_id(10)
         super().save(*args, **kwargs)
 
     
