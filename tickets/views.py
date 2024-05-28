@@ -1,5 +1,5 @@
 from .models import TicketType
-from .serializers import TicketTypeSerializer
+from .serializers import TicketTypeSerializer, TicketPurchaseSerializer
 from  accounts.permissions import IsVerified
 from django.shortcuts import render
 from programs.models import Event
@@ -160,4 +160,32 @@ def delete_ticket_type_view(request, ticket_type_id:str):
                 'success':True,
                 'message':'Ticket type deleted successfully'
             }, status=status.HTTP_200_OK
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsVerified])
+def purchase_ticket_view(request, ticket_type_id:str):
+    if request.method == 'POST':
+        ticket_type = get_ticket_type(id=ticket_type_id)
+        user = request.user
+        event = ticket_type.event
+
+        serializer = TicketPurchaseSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save(user=user, event=event, ticket_type=ticket_type)
+
+            return Response(
+                {
+                    'success':True,
+                    'message':'Confirm payment',
+                    'purchase_details':serializer.data
+                }, status=status.HTTP_200_OK
+            )
+        return Response(
+            {
+                'success':False,
+                'message':serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST
         )
